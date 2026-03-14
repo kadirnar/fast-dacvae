@@ -170,6 +170,9 @@ def _convert_conv1d_to_conv2d(model):
     Also replaces Snake1d with polynomial sin² approximation:
       sin²(θ) ≈ θ² - θ⁴/3 + 2θ⁶/45  (6th order, max error ~0.005)
     This bypasses the H100 SFU bottleneck (sin() at 287 GB/s → ALU at peak BW).
+
+    Snake alpha is pre-expanded to 4D and inv_alpha is pre-computed to avoid
+    dynamic dim checks and per-call division (eliminates Dynamo recompilation).
     """
     count = {'conv': 0, 'ct': 0, 'snake': 0}
 
@@ -214,19 +217,21 @@ def _convert_conv1d_to_conv2d(model):
                 setattr(parent, name, replace_ct1d(child))
                 count['ct'] += 1
             elif ctype == 'Snake1d':
-                alpha = child.alpha
-                def make_snake_poly(a):
+                # Pre-expand alpha to 4D so we don't need x.dim() checks
+                # at runtime (eliminates Dynamo recompilation).
+                # Store as buffer so .to(dtype) converts it properly.
+                a4 = child.alpha.data.unsqueeze(-1)  # [1, C, 1] → [1, C, 1, 1]
+                child.register_buffer('_a4', a4)
+                child.register_buffer('_inv_a4', 1.0 / (a4 + 1e-9))
+                def make_snake_poly(mod):
                     def fwd(x):
-                        a4 = a.unsqueeze(-1) if x.dim() == 4 else a
-                        ax = a4 * x
-                        # Range reduction to [-π/2, π/2]
+                        ax = mod._a4 * x
                         theta = ax - _PI * torch.round(ax * _INV_PI)
                         t2 = theta * theta
-                        # sin²(θ) ≈ θ² * (1 - θ²/3 + 2θ⁴/45)
                         sin2 = t2 * (1.0 - t2 * (1.0/3.0 - t2 * (2.0/45.0)))
-                        return x + (1.0 / (a4 + 1e-9)) * sin2
+                        return x + mod._inv_a4 * sin2
                     return fwd
-                child.forward = make_snake_poly(alpha)
+                child.forward = make_snake_poly(child)
                 count['snake'] += 1
             else:
                 _replace(child)
@@ -325,7 +330,15 @@ def optimize_dacvae(model, x_sample, backend='inductor'):
     # 3. Conv1d → Conv2d channels_last + PyTorch snake
     cnt = _convert_conv1d_to_conv2d(model)
 
-    # 4. Build optimized forward (no graph breaks, no watermark)
+    # 4. Patch ResidualUnit shortcuts to avoid dynamic shape computation.
+    # For pad_mode="none" ResUnits, input and output have the same spatial size,
+    # so the shortcut is always a direct addition (pad=0). Replacing the dynamic
+    # shortcut with a static one eliminates a potential graph break.
+    for _, mod in model.named_modules():
+        if type(mod).__name__ == 'ResidualUnit' and not mod.true_skip:
+            mod.shortcut = lambda x, y: x
+
+    # Build optimized forward (no graph breaks, no watermark)
     def _run_module(mod, x):
         ctype = type(mod).__name__
         if ctype == 'ResidualUnit':
@@ -386,7 +399,15 @@ def optimize_dacvae(model, x_sample, backend='inductor'):
         mean, _ = combined.chunk(2, dim=1)
         _sn[0] = torch.randn_like(mean)
 
-    # 8. Compile with appropriate backend
+    # 8. Install cuDNN v9 conv+snake fusion pass (Inductor only)
+    if backend == 'inductor':
+        try:
+            from dacvae.inductor_fusion import install_conv_snake_fusion
+            install_conv_snake_fusion()
+        except Exception as e:
+            print(f"[optimize] cuDNN fusion pass not available: {e}")
+
+    # 9. Compile with appropriate backend
     if backend == 'tensorrt':
         import torch_tensorrt
         compiled = torch_tensorrt.compile(model,

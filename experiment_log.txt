@@ -1,0 +1,22 @@
+EXP LOG 2026-03-14 05:52:47
+  Result: p50=177.6ms (1.26x vs 224ms baseline)
+  Method: Custom Inductor post_grad_custom_pre_pass fusing 26 conv+snake patterns via cuDNN v9 pygraph
+  Files: dacvae/inductor_fusion.py (pattern matcher + cuDNN graph builder)
+  Status: Working, correctness verified
+---
+EXP LOG 2026-03-14 05:57:28
+  Result: p50=105.6ms (2.12x vs 224ms baseline)
+  Method: Removed obuf.clone() + x.to(channels_last) from custom op — saved 71ms
+  26 conv+snake fused via cuDNN v9 + Inductor handles remaining ops
+---
+EXP LOG 2026-03-14 06:11:23
+  *** BREAKTHROUGH: p50=59.4ms (3.77x vs 224ms baseline) ***
+  Method: cuDNN v9 Inductor fusion pass: 26 conv+snake + 24 conv+add patterns
+  Key: eliminated obuf.clone() + layout conversion, added conv_k1+residual fusion
+  TARGET <100ms ACHIEVED
+---
+EXP LOG 2026-03-14 06:29:16
+  OFFICIAL BENCHMARK: p50=58.7ms min=56.2ms p90=58.8ms
+  Audio: 4,489,380 samples (101.8s) on H100 PCIe
+  Speedup: 3.82x vs previous (224ms), target <100ms ACHIEVED
+---

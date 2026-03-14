@@ -1,16 +1,15 @@
 # Fast-DACVAE
 
-Optimized inference for [DACVAE](https://github.com/facebookresearch/dacvae) (Descript Audio Codec with VAE bottleneck). **6.4x faster** on NVIDIA H100 GPU.
+Optimized inference for [DACVAE](https://github.com/facebookresearch/dacvae) (Descript Audio Codec with VAE bottleneck). **14.3x faster** on NVIDIA H100 GPU — **3,859x real-time** audio processing.
 
 ## Benchmark
 
-**Hardware**: NVIDIA H100 PCIe (80GB) | **Audio**: 101.8s at 44.1kHz
+**Hardware**: NVIDIA H100 PCIe (80GB)
 
-| Backend | p50 Latency | Speedup |
-|---------|-------------|---------|
-| Baseline (PyTorch FP32) | 377ms | 1.0x |
-| Inductor BF16 (torch.compile) | 224ms | 1.7x |
-| **Inductor BF16 + cuDNN v9 Fusion** | **58.7ms** | **6.4x** |
+| Audio Duration | Baseline (FP32) | **Optimized** | Speedup | Real-time Factor |
+|---------------|-----------------|--------------|---------|-----------------|
+| 10s (441K samples) | 37ms | **2.8ms** | 13.2x | 3,588x |
+| 101.8s (4.5M samples) | 377ms | **26.4ms** | 14.3x | 3,859x |
 
 ## Installation
 
@@ -22,7 +21,8 @@ pip install -e .
 
 ```python
 import torch
-from dacvae import DACVAE, optimize_dacvae
+from dacvae import DACVAE
+from dacvae.optimize import optimize_dacvae
 
 model = DACVAE().cuda().eval()
 audio = torch.randn(1, 1, 441000, device="cuda")

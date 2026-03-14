@@ -1,4 +1,5 @@
 einops
 numpy
-torch>=2.4
+torch
 huggingface-hub
+nvidia-cudnn-cu12 nvidia-cudnn-frontend

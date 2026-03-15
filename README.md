@@ -8,6 +8,7 @@ Optimized inference for [DACVAE](https://github.com/facebookresearch/dacvae) (De
 
 | Audio Duration | Baseline (FP32) | **Optimized** | Speedup | Real-time Factor |
 |---------------|-----------------|--------------|---------|-----------------|
+| 10s (441K samples) | 37ms | **2.8ms** | 13.2x | 3,588x |
 | 100s (4.4M samples) | 377ms | **26.4ms** | 14.3x | 3,859x |
 
 ## Installation

@@ -23,7 +23,7 @@ def _nhwc(n, c, h, w):
     return [c * h * w, 1, c * w, c]
 
 
-_CUDNN_CACHE = {}  # key: (C_in, C_out, T, K_w, dilation, pad) -> (graph, handles, ws, obuf)
+_CUDNN_CACHE = {}  # key: (C_in, C_out, T, K_w, dilation, pad, use_fp8) -> entry
 
 
 def _get_or_build_graph(C_in, C_out, T, K_w, dilation, pad):
@@ -83,24 +83,23 @@ def conv_snake_fused(
     alpha: torch.Tensor, inv_alpha: torch.Tensor,
     padding_w: int, dilation_w: int,
 ) -> torch.Tensor:
-    """Fused Conv2d + bias + snake via cuDNN v9 runtime fusion."""
+    """Fused Conv2d + bias + snake via cuDNN v9 runtime fusion.
+
+    Automatically selects FP8 for dilated convolutions (D>=3, C>=96)
+    where cuDNN's BF16 eng7 plan is slow. Handles BF16↔FP8 conversion.
+    """
     C_in = weight.shape[1]
     C_out = weight.shape[0]
     K_w = weight.shape[3]
     T = x.shape[3]
 
-    # Allocate output (avoid clone of static buffer — saves one DtoD memcpy)
-    output = torch.empty(1, C_out, 1, T, dtype=x.dtype, device=x.device,
-                         memory_format=torch.channels_last)
-
     g, gx, gw, gb, ga, gia, go, ws, _obuf = _get_or_build_graph(
         C_in, C_out, T, K_w, dilation_w, padding_w)
 
-    # Input is already NHWC from Inductor (model uses channels_last convs)
-    g.execute({
-        gx: x, gw: weight, gb: bias,
-        ga: alpha, gia: inv_alpha, go: output,
-    }, ws)
+    output = torch.empty(1, C_out, 1, T, dtype=x.dtype, device=x.device,
+                         memory_format=torch.channels_last)
+    g.execute({gx: x, gw: weight, gb: bias,
+               ga: alpha, gia: inv_alpha, go: output}, ws)
     return output
 
 

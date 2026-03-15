@@ -6,10 +6,12 @@ Optimized inference for [DACVAE](https://github.com/facebookresearch/dacvae) (De
 
 **Hardware**: NVIDIA H100 PCIe (80GB)
 
-| Audio Duration | Method | Latency | Real-time Factor |
-|---------------|--------|---------|-----------------|
-| 100s | Baseline (FP32) | 377ms | 265x |
-| 100s | **cuDNN v9 Fusion (BF16)** | **26.4ms** | **3,859x** |
+| Method | Latency (100s audio) | Speedup | Real-time Factor |
+|--------|---------------------|---------|-----------------|
+| Baseline (PyTorch FP32) | 377ms | 1.0x | 265x |
+| Inductor BF16 + CUDA Graph | 224ms | 1.7x | 446x |
+| TensorRT FP16 + CUDA Graph | 103ms | 3.6x | 971x |
+| **Inductor BF16 + cuDNN v9 Fusion** | **26.4ms** | **14.3x** | **3,859x** |
 
 ## Installation
 

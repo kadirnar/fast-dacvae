@@ -1,6 +1,6 @@
 # Fast-DACVAE
 
-Optimized inference for [DACVAE](https://github.com/facebookresearch/dacvae) (Descript Audio Codec with VAE bottleneck).
+Fast inference engine for [DACVAE](https://github.com/facebookresearch/dacvae), a neural audio codec that compresses and reconstructs audio using a convolutional encoder-decoder with a VAE bottleneck. This library accelerates DACVAE inference up to **11.2x** on NVIDIA GPUs through graph-level optimizations — with no custom kernels, no quality loss at FP32, and no changes to model weights.
 
 ## Benchmark
 

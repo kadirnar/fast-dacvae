@@ -2,8 +2,6 @@
 
 Optimized inference for [DACVAE](https://github.com/facebookresearch/dacvae) (Descript Audio Codec with VAE bottleneck).
 
-**11.2x faster than PyTorch FP32. Faster than TensorRT. Standard PyTorch only.**
-
 ## Benchmark
 
 NVIDIA H100 PCIe | `facebook/dacvae-watermarked` (107.7M params) | 100s audio @ 48kHz
@@ -25,13 +23,6 @@ NVIDIA H100 PCIe | `facebook/dacvae-watermarked` (107.7M params) | 100s audio @ 
 | **+ torch.compile + graph (FP16)** | **93 ms** | **11.2x** | **1,071x** | **40.2 dB** |
 | + torch.compile + graph (BF16) | 100 ms | 10.5x | 1,004x | 29.8 dB |
 
-### Summary
-
-| Precision | Latency | Speedup vs FP32 | Real-time Factor | Quality |
-|:---------:|:-------:|:---------------:|:----------------:|:-------:|
-| FP32 | 209 ms | 5.0x | 478x | Lossless |
-| **FP16** | **93 ms** | **11.2x** | **1,071x** | **SNR 40.2 dB** |
-| BF16 | 100 ms | 10.5x | 1,004x | SNR 29.8 dB |
 
 ## Quick Start
 

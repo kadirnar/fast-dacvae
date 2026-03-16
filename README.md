@@ -1,59 +1,74 @@
 # Fast-DACVAE
 
-Optimized inference for [DACVAE](https://github.com/facebookresearch/dacvae) (Descript Audio Codec with VAE bottleneck). **14.3x faster** on NVIDIA H100 GPU — **3,859x real-time** audio processing.
+Optimized inference for [DACVAE](https://github.com/facebookresearch/dacvae) (Descript Audio Codec with VAE bottleneck).
+
+**11.2x faster than PyTorch FP32. Faster than TensorRT. Standard PyTorch only.**
 
 ## Benchmark
 
-**Hardware**: NVIDIA H100 PCIe (80GB)
+NVIDIA H100 PCIe | `facebook/dacvae-watermarked` (107.7M params) | 100s audio @ 48kHz
 
-| Method | Latency (100s audio) | Speedup | Real-time Factor |
-|--------|---------------------|---------|-----------------|
-| Baseline (PyTorch FP32) | 377ms | 1.0x | 265x |
-| Inductor BF16 + CUDA Graph | 224ms | 1.7x | 446x |
-| TensorRT FP16 + CUDA Graph | 103ms | 3.6x | 971x |
-| **Inductor BF16 + cuDNN v9 Fusion** | **26.4ms** | **14.3x** | **3,859x** |
+### Full Precision (FP32) — Zero Quality Loss
 
-## Installation
+| Method | Latency | Speedup | Real-time Factor |
+|--------|:-------:|:-------:|:----------------:|
+| PyTorch FP32 | 1,047 ms | 1.0x | 96x |
+| + channels_last + wn_off | 549 ms | 1.9x | 182x |
+| **+ torch.compile + graph** | **209 ms** | **5.0x** | **478x** |
+
+### Half Precision (FP16 / BF16)
+
+| Method | Latency | Speedup | RTF | SNR vs FP32 |
+|--------|:-------:|:-------:|:---:|:-----------:|
+| PyTorch FP16 | 775 ms | 1.4x | 129x | 40.4 dB |
+| + channels_last + wn_off | 307 ms | 3.4x | 326x | 40.2 dB |
+| **+ torch.compile + graph (FP16)** | **93 ms** | **11.2x** | **1,071x** | **40.2 dB** |
+| + torch.compile + graph (BF16) | 100 ms | 10.5x | 1,004x | 29.8 dB |
+
+### Summary
+
+| Precision | Latency | Speedup vs FP32 | Real-time Factor | Quality |
+|:---------:|:-------:|:---------------:|:----------------:|:-------:|
+| FP32 | 209 ms | 5.0x | 478x | Lossless |
+| **FP16** | **93 ms** | **11.2x** | **1,071x** | **SNR 40.2 dB** |
+| BF16 | 100 ms | 10.5x | 1,004x | SNR 29.8 dB |
+
+## Quick Start
 
 ```bash
 pip install -e .
 ```
 
-## Quick Start
-
 ```python
-import torch
 from dacvae import DACVAE
 from dacvae.optimize import optimize_dacvae
+import torch
 
-model = DACVAE().cuda().eval()
-audio = torch.randn(1, 1, 441000, device="cuda")
+model = DACVAE.load("facebook/dacvae-watermarked").cuda().eval()
+audio = torch.randn(1, 1, 4800000, device="cuda")
 
-replay_fn, description, _ = optimize_dacvae(model, audio, backend="inductor")
-
-with torch.no_grad():
-    output = replay_fn()
+# FP16 (fastest, high quality)
+replay_fn, _, _ = optimize_dacvae(model, audio, backend="inductor")
+output = replay_fn()  # ~93ms
 ```
 
-```bash
-python benchmark.py --duration 101.8 --backend inductor
-```
+## Optimizations
 
-## How It Works
+All optimizations are applied automatically via `optimize_dacvae()`:
 
-DACVAE uses Snake activation (`x + (1/α)·sin²(α·x)`) after every convolution. Each Snake reads the conv output from global memory and writes back, creating ~210GB of memory traffic per forward pass.
+- **Conv1d → Conv2d channels_last** — cuDNN NHWC fast path (1.9x alone)
+- **Weight norm removal** — eliminates per-call recomputation
+- **Deterministic VAE bottleneck** — pre-initialized noise for CUDA graph
+- **torch.compile** — Inductor fusion + freezing + fullgraph (5x with FP32)
+- **CUDA graph capture** — zero kernel launch overhead
+- **Original snake activation** — exact `sin²(αx)`, no approximation
 
-A custom Inductor compiler pass pattern-matches conv+snake sequences in the FX graph and replaces them with cuDNN v9 fused kernels that compute snake inside the conv epilogue — eliminating intermediate memory writes. 50 patterns are fused per compilation (26 conv+snake, 24 conv+residual).
+All optimizations use standard `torch.compile` — no custom kernels required.
 
 ## Requirements
 
 - PyTorch 2.9+
-- NVIDIA GPU (Ampere/Hopper)
-- cuDNN 9.1+ with Python frontend (`pip install nvidia-cudnn-cu12 nvidia-cudnn-frontend`)
-
-## Acknowledgments
-
-Based on [DACVAE](https://github.com/facebookresearch/dacvae) by Meta Research.
+- NVIDIA GPU (Hopper/Ampere)
 
 ## License
 

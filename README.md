@@ -6,22 +6,11 @@ Fast inference engine for [DACVAE](https://github.com/facebookresearch/dacvae), 
 
 NVIDIA H100 PCIe | `facebook/dacvae-watermarked` (107.7M params) | 100s audio @ 48kHz
 
-### Full Precision (FP32) — Zero Quality Loss
-
-| Method | Latency | Speedup | Real-time Factor |
-|--------|:-------:|:-------:|:----------------:|
-| PyTorch FP32 | 1,047 ms | 1.0x | 96x |
-| + channels_last + wn_off | 549 ms | 1.9x | 182x |
-| **+ torch.compile + graph** | **209 ms** | **5.0x** | **478x** |
-
-### Half Precision (FP16 / BF16)
-
-| Method | Latency | Speedup | RTF | SNR vs FP32 |
-|--------|:-------:|:-------:|:---:|:-----------:|
-| PyTorch FP16 | 775 ms | 1.4x | 129x | 40.4 dB |
-| + channels_last + wn_off | 307 ms | 3.4x | 326x | 40.2 dB |
-| **+ torch.compile + graph (FP16)** | **93 ms** | **11.2x** | **1,071x** | **40.2 dB** |
-| + torch.compile + graph (BF16) | 100 ms | 10.5x | 1,004x | 29.8 dB |
+| Method | FP32 | FP16 | BF16 |
+|--------|:----:|:----:|:----:|
+| PyTorch (baseline) | 1,047 ms | 775 ms | 775 ms |
+| + channels_last | 549 ms | 307 ms | 305 ms |
+| + torch.compile + CUDA graph | **209 ms** | **93 ms** | **100 ms** |
 
 
 ## Quick Start

@@ -43,18 +43,6 @@ replay_fn, _, _ = optimize_dacvae(model, audio, backend="inductor")
 output = replay_fn()  # ~93ms
 ```
 
-## Optimizations
-
-All optimizations are applied automatically via `optimize_dacvae()`:
-
-- **Conv1d → Conv2d channels_last** — cuDNN NHWC fast path (1.9x alone)
-- **Weight norm removal** — eliminates per-call recomputation
-- **Deterministic VAE bottleneck** — pre-initialized noise for CUDA graph
-- **torch.compile** — Inductor fusion + freezing + fullgraph (5x with FP32)
-- **CUDA graph capture** — zero kernel launch overhead
-- **Original snake activation** — exact `sin²(αx)`, no approximation
-
-All optimizations use standard `torch.compile` — no custom kernels required.
 
 ## Requirements
 

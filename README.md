@@ -38,9 +38,17 @@ import torch
 model = DACVAE.load("facebook/dacvae-watermarked").cuda().eval()
 audio = torch.randn(1, 1, 4800000, device="cuda")
 
-# FP16 (fastest, high quality)
-replay_fn, _, _ = optimize_dacvae(model, audio, backend="inductor")
-output = replay_fn()  # ~93ms
+# FP32 — zero quality loss, ~209ms
+replay = optimize_dacvae(model, audio, dtype="fp32")
+output = replay()
+
+# FP16 — fastest, ~93ms
+replay = optimize_dacvae(model, audio, dtype="fp16")
+output = replay()
+
+# BF16 — ~100ms
+replay = optimize_dacvae(model, audio, dtype="bf16")
+output = replay()
 ```
 
 

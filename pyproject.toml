@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fast-dacvae"
+version = "0.1.0"
+description = "Fast inference engine for DACVAE neural audio codec"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Kadir Nar", email = "kadir.nar@hotmail.com"},
+]
+keywords = ["audio", "codec", "dacvae", "inference", "optimization"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "einops",
+    "numpy",
+    "torch>=2.4",
+    "huggingface-hub",
+]
+
+[project.optional-dependencies]
+tensorrt = ["torch-tensorrt"]
+cudnn = ["nvidia-cudnn-cu12", "nvidia-cudnn-frontend"]
+
+[project.urls]
+Homepage = "https://github.com/kadirnar/fast-dacvae"
+Repository = "https://github.com/kadirnar/fast-dacvae"
+Issues = "https://github.com/kadirnar/fast-dacvae/issues"
+
+[tool.setuptools.packages.find]
+include = ["dacvae*"]

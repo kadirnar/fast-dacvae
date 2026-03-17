@@ -27,7 +27,7 @@ NVIDIA H100 PCIe | `facebook/dacvae-watermarked` (107.7M params) | 100s audio @ 
 ## Quick Start
 
 ```bash
-pip install -e .
+pip install git+https://github.com/kadirnar/fast-dacvae.git
 ```
 
 ```python

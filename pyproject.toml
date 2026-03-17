@@ -30,11 +30,12 @@ dependencies = [
     "numpy",
     "torch>=2.4",
     "huggingface-hub",
+    "nvidia-cudnn-cu12",
+    "nvidia-cudnn-frontend",
 ]
 
 [project.optional-dependencies]
 tensorrt = ["torch-tensorrt"]
-cudnn = ["nvidia-cudnn-cu12", "nvidia-cudnn-frontend"]
 
 [project.urls]
 Homepage = "https://github.com/kadirnar/fast-dacvae"
